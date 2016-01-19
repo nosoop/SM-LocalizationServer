@@ -6,7 +6,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.2.0"
+#define PLUGIN_VERSION "0.3.0"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -60,6 +60,24 @@ public int Native_GetLocalizedString(Handle plugin, int nArgs) {
 	Internal_GetLocalizedString(fwd, language, token, data);
 }
 
+public int Native_ResolveLocalizedString(Handle plugin, int nArgs) {
+	int tokenLength;
+	GetNativeStringLength(2, tokenLength);
+	tokenLength++;
+	
+	char[] token = new char[tokenLength];
+	
+	int language = GetNativeCell(1);
+	GetNativeString(2, token, tokenLength);
+	
+	int maxlen = GetNativeCell(4);
+	char[] buffer = new char[maxlen];
+	
+	bool result = Internal_ResolveLocalizedString(language, token, buffer, maxlen);
+	SetNativeString(3, buffer, maxlen);
+	
+	return result;
+}
 
 /* Internal query methods */
 
@@ -73,6 +91,7 @@ void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] 
 	char languageName[MAX_LANGUAGE_NAME_LENGTH];
 	GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
 	
+	// TODO threaded support?
 	g_StmtGetLocalizedString.BindString(0, token, true);
 	g_StmtGetLocalizedString.BindString(1, languageName, true);
 	
@@ -89,6 +108,22 @@ void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] 
 	PerformLocalizedStringCallback(callbackFwd, language, token, resultString, data);
 }
 
+bool Internal_ResolveLocalizedString(int language, const char[] token, char[] buffer, int maxlen) {
+	char languageName[MAX_LANGUAGE_NAME_LENGTH];
+	GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
+	
+	g_StmtGetLocalizedString.BindString(0, token, true);
+	g_StmtGetLocalizedString.BindString(1, languageName, true);
+	
+	// apparently prepared statements can't be threaded?
+	SQL_Execute(g_StmtGetLocalizedString);
+	SQL_FetchRow(g_StmtGetLocalizedString);
+	
+	SQL_FetchString(g_StmtGetLocalizedString, 0, buffer, maxlen);
+	
+	return true;
+}
+
 void PerformLocalizedStringCallback(Handle fwd, int language, const char[] token, const char[] result, any data) {
 	Call_StartForward(fwd);
 	Call_PushCell(language);
@@ -103,4 +138,5 @@ void PerformLocalizedStringCallback(Handle fwd, int language, const char[] token
 public APLRes AskPluginLoad2(Handle hMySelf, bool bLate, char[] strError, int iMaxErrors) {
 	RegPluginLibrary("localization-server");
 	CreateNative("LanguageServer_GetLocalizedString", Native_GetLocalizedString);
+	CreateNative("LanguageServer_ResolveLocalizedString", Native_ResolveLocalizedString);
 }

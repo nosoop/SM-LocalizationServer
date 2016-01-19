@@ -19,3 +19,5 @@ public void __pl_localization_server_SetNTVOptional() {
 typedef LocalizedStringCallback = function void(int language, const char[] token, const char[] result, any data);
 
 native void LanguageServer_GetLocalizedString(int language, const char[] token, LocalizedStringCallback callback, any data = 0);
+
+native bool LanguageServer_ResolveLocalizedString(int language, const char[] token, char[] buffer, int maxlen);
