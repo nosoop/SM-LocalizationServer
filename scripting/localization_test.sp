@@ -8,7 +8,7 @@
 
 #include <localization_server>
 
-#define PLUGIN_VERSION "0.0.1"
+#define PLUGIN_VERSION "0.0.2"
 public Plugin myinfo = {
     name = "Localization Server Test Plugin",
     author = "nosoop",
@@ -28,6 +28,7 @@ char TEST_TOKENS[][] = {
 	"StatPanel_MVM_PlayTime_Tie",
 	"TF_TournamentMedal_OzFortress_OWL10_6v6_Premier_Division_First_Place",
 	"TF_MEDIC_ACHIEVE_PROGRESS1_DESC",
+	"game_switch_in_sec"
 };
 
 public void OnPluginStart() {
