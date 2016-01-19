@@ -64,7 +64,7 @@ for localization_file in LANGUAGE_FILES:
 	language = data['Language'].lower()
 	for k, v in data['Tokens'].items():
 		if not (k.startswith('[english]') and DROP_LOCALIZED_ENGLISH_TOKEN):
-			dbc.execute('INSERT OR IGNORE INTO localizations (language,token,string) VALUES (?,?,?)', (language, k, v) )
+			dbc.execute('INSERT OR REPLACE INTO localizations (language,token,string) VALUES (?,?,?)', (language, k, v) )
 			tokens_included += 1
 
 	db.commit()
