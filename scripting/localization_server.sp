@@ -6,7 +6,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.1.0"
+#define PLUGIN_VERSION "0.2.0"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -24,29 +24,20 @@ DBStatement g_StmtGetLocalizedString;
 typedef LocalizedStringCallback = function void(int language, const char[] token, const char[] result, any data);
 
 public void OnPluginStart() {
-    if (SQL_CheckConfig(DATABASE_ENTRY)) {
-		Database.Connect(SQLConnect_LanguageDB, DATABASE_ENTRY, _);
-	} else {
-		SetFailState("Database entry %s doesn't exist -- did you add it to databases.cfg?", DATABASE_ENTRY);
+	char error[256];
+	g_LanguageDatabase = SQLite_UseDatabase("language-db", error, sizeof(error));
+
+	if (g_LanguageDatabase == null) {
+		SetFailState("Failed to access localization strings database: %s", error);
+	}
+	
+	g_StmtGetLocalizedString = SQL_PrepareQuery(g_LanguageDatabase,
+			"SELECT string FROM localizations WHERE token = ? AND language = ?", error, sizeof(error));
+	if (g_StmtGetLocalizedString == null) {
+		SetFailState("Failed to create prepared statement for GetLocalizedString() -- %s", error);
 	}
 	
 	CreateConVar("localization_server_version", PLUGIN_VERSION, "Current version of Localization Server", FCVAR_NOTIFY | FCVAR_DONTRECORD);
-}
-
-public void SQLConnect_LanguageDB(Database db, const char[] error, any data) {
-	if (db == null) {
-		SetFailState("Could not connect to database %s", DATABASE_ENTRY);
-	} else {
-		char prepError[256];
-		
-		g_LanguageDatabase = db;
-		
-		g_StmtGetLocalizedString = SQL_PrepareQuery(g_LanguageDatabase,
-				"SELECT string FROM localizations WHERE token = ? AND language = ?", prepError, sizeof(prepError));
-		if (g_StmtGetLocalizedString == null) {
-			SetFailState("Failed to create prepared statement for GetLocalizedString() -- %s", prepError);
-		}
-	}
 }
 
 /* Methods and natives */
