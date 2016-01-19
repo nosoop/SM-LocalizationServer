@@ -18,10 +18,6 @@ public Plugin myinfo = {
 #define DATABASE_ENTRY "localization-db"
 #define MAX_LANGUAGE_NAME_LENGTH 32
 
-// Longest token length is currently 69, based on the following query:
-// `SELECT token, length(token) FROM "localizations" WHERE length(token) = ( SELECT max(length(token)) from "localizations" )`
-#define MAX_LANGUAGE_TOKEN_LENGTH 128
-
 Database g_LanguageDatabase;
 DBStatement g_StmtGetLocalizedString;
 
@@ -33,6 +29,8 @@ public void OnPluginStart() {
 	} else {
 		SetFailState("Database entry %s doesn't exist -- did you add it to databases.cfg?", DATABASE_ENTRY);
 	}
+	
+	CreateConVar("localization_server_version", PLUGIN_VERSION, "Current version of Localization Server", FCVAR_NOTIFY | FCVAR_DONTRECORD);
 }
 
 public void SQLConnect_LanguageDB(Database db, const char[] error, any data) {
