@@ -8,7 +8,7 @@
 
 #include <localization_server>
 
-#define PLUGIN_VERSION "0.0.2"
+#define PLUGIN_VERSION "0.1.0"
 public Plugin myinfo = {
     name = "Localization Server Test Plugin",
     author = "nosoop",
@@ -31,9 +31,28 @@ char TEST_TOKENS[][] = {
 	"game_switch_in_sec"
 };
 
+char MORE_TEST_TOKENS[][] = {
+	"TF_BigChief",
+	"TF_Quickplay_Complexity2",
+	"TF_Halloween_Merasmus_LevelUp_Escaped",
+	"Scoreboard_ChangeOnRoundEnd",
+	"Attrib_metal_pickup_decreased",
+	"Attrib_HealthFromHealers_Increased",
+	"TF_TAUNT_CONGA_KILL_NAME",
+	"Attrib_RocketJumpDmgReduction",
+	"TF_HEAVY_SURVIVE_CROCKET_DESC",
+	"TF_MatchOption_PrivateSlots",
+};
+
 public void OnPluginStart() {
 	for (int i = 0; i < sizeof(TEST_TOKENS); i++) {
 		LanguageServer_GetLocalizedString(GetServerLanguage(), TEST_TOKENS[i], LS_PrintResult, i);
+	}
+	
+	char buffer[256];
+	for (int i = 0; i < sizeof(MORE_TEST_TOKENS); i++) {
+		LanguageServer_ResolveLocalizedString(GetServerLanguage(), MORE_TEST_TOKENS[i], buffer, sizeof(buffer));
+		PrintToServer("%2d. %s (%s)", i + 1, buffer, MORE_TEST_TOKENS[i]);
 	}
 }
 
