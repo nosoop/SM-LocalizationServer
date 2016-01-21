@@ -1,5 +1,5 @@
 /**
- * Sourcemod 1.7 Plugin Template
+ * Allows plugins to access Valve's localized strings from a database.
  */
 #pragma semicolon 1
 #include <sourcemod>
