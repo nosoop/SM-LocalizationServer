@@ -45,10 +45,12 @@ char MORE_TEST_TOKENS[][] = {
 };
 
 public void OnPluginStart() {
+	// Threaded -- these use a callback
 	for (int i = 0; i < sizeof(TEST_TOKENS); i++) {
 		LanguageServer_GetLocalizedString(GetServerLanguage(), TEST_TOKENS[i], LS_PrintResult, i);
 	}
 	
+	// Non-threaded -- these block until the query completes
 	char buffer[256];
 	for (int i = 0; i < sizeof(MORE_TEST_TOKENS); i++) {
 		LanguageServer_ResolveLocalizedString(GetServerLanguage(), MORE_TEST_TOKENS[i], buffer, sizeof(buffer));

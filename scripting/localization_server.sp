@@ -6,7 +6,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.3.0"
+#define PLUGIN_VERSION "0.4.0"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -91,19 +91,49 @@ void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] 
 	char languageName[MAX_LANGUAGE_NAME_LENGTH];
 	GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
 	
-	// TODO threaded support?
-	g_StmtGetLocalizedString.BindString(0, token, true);
-	g_StmtGetLocalizedString.BindString(1, languageName, true);
+	char query[256], escapedToken[128];
+	g_LanguageDatabase.Escape(token, escapedToken, sizeof(escapedToken));
 	
-	// apparently prepared statements can't be threaded?
-	SQL_Execute(g_StmtGetLocalizedString);
-	SQL_FetchRow(g_StmtGetLocalizedString);
+	Format(query, sizeof(query),
+			"SELECT token, string FROM localizations WHERE token = '%s' AND language = '%s'", escapedToken, languageName);
 	
-	// size does not include zero-termination
-	int resultLength = SQL_FetchSize(g_StmtGetLocalizedString, 0) + 1;
+	DataPack dataPack = new DataPack();
+	dataPack.WriteCell(language);
+	dataPack.WriteCell(data);
+	dataPack.WriteCell(callbackFwd);
+	dataPack.WriteString(token);
 	
-	char[] resultString = new char[resultLength];
-	SQL_FetchString(g_StmtGetLocalizedString, 0, resultString, resultLength);
+	g_LanguageDatabase.Query(Internal_LocalizedStringQueryCallback, query, dataPack);
+}
+
+public void Internal_LocalizedStringQueryCallback(Database db, DBResultSet results, const char[] error, DataPack dataPack) {
+	dataPack.Reset();
+	
+	// we only use the packed token in case of an error (might be truncated)
+	char packedToken[128];
+	
+	int language = dataPack.ReadCell();
+	any data = dataPack.ReadCell();
+	Handle callbackFwd = dataPack.ReadCell();
+	dataPack.ReadString(packedToken, sizeof(packedToken));
+	
+	delete dataPack;
+	
+	if (results.RowCount < 1) {
+		ThrowError("Could not find localized string for token %s.", packedToken);
+		delete callbackFwd;
+		return;
+	}
+	
+	// token
+	int bufferSize = results.FetchSize(0) + 1;
+	char[] token = new char[bufferSize];
+	results.FetchString(0, token, bufferSize);
+	
+	// string
+	bufferSize = results.FetchSize(1) + 1;
+	char[] resultString = new char[bufferSize];
+	results.FetchString(1, resultString, bufferSize);
 	
 	PerformLocalizedStringCallback(callbackFwd, language, token, resultString, data);
 }
@@ -115,7 +145,7 @@ bool Internal_ResolveLocalizedString(int language, const char[] token, char[] bu
 	g_StmtGetLocalizedString.BindString(0, token, true);
 	g_StmtGetLocalizedString.BindString(1, languageName, true);
 	
-	// apparently prepared statements can't be threaded?
+	// apparently prepared statements can't be threaded yet!
 	SQL_Execute(g_StmtGetLocalizedString);
 	SQL_FetchRow(g_StmtGetLocalizedString);
 	
