@@ -6,7 +6,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.4.0"
+#define PLUGIN_VERSION "0.5.1"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -17,11 +17,13 @@ public Plugin myinfo = {
 
 #define DATABASE_ENTRY "localization-db"
 #define MAX_LANGUAGE_NAME_LENGTH 32
+#define MAX_LANGUAGE_TOKEN_LENGTH 128
 
 Database g_LanguageDatabase;
 DBStatement g_StmtGetLocalizedString;
 
-typedef LocalizedStringCallback = function void(int language, const char[] token, const char[] result, any data);
+typedef LocalizedStringCallback = function void(int language, const char[] token,
+		const char[] result, any data);
 
 public void OnPluginStart() {
 	char error[256];
@@ -32,12 +34,16 @@ public void OnPluginStart() {
 	}
 	
 	g_StmtGetLocalizedString = SQL_PrepareQuery(g_LanguageDatabase,
-			"SELECT string FROM localizations WHERE token = ? AND language = ?", error, sizeof(error));
+			"SELECT string FROM localizations WHERE token = ? AND language = ?",
+			error, sizeof(error));
+	
 	if (g_StmtGetLocalizedString == null) {
-		SetFailState("Failed to create prepared statement for GetLocalizedString() -- %s", error);
+		SetFailState("Failed to create prepared statement for GetLocalizedString() -- %s",
+				error);
 	}
 	
-	CreateConVar("localization_server_version", PLUGIN_VERSION, "Current version of Localization Server", FCVAR_NOTIFY | FCVAR_DONTRECORD);
+	CreateConVar("localization_server_version", PLUGIN_VERSION,
+			"Current version of Localization Server", FCVAR_NOTIFY | FCVAR_DONTRECORD);
 }
 
 /* Methods and natives */
@@ -81,21 +87,24 @@ public int Native_ResolveLocalizedString(Handle plugin, int nArgs) {
 
 /* Internal query methods */
 
-Handle CreateLocalizedStringCallbackForward(Handle plugin = INVALID_HANDLE, LocalizedStringCallback callback) {
+Handle CreateLocalizedStringCallbackForward(Handle plugin = INVALID_HANDLE,
+		LocalizedStringCallback callback) {
 	Handle fwd = CreateForward(ET_Ignore, Param_Cell, Param_String, Param_String, Param_Cell);
 	AddToForward(fwd, plugin, callback);
 	return fwd;
 }
 
-void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] token, any data = 0) {
+void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] token,
+		any data = 0) {
 	char languageName[MAX_LANGUAGE_NAME_LENGTH];
 	GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
 	
-	char query[256], escapedToken[128];
+	char query[256], escapedToken[MAX_LANGUAGE_TOKEN_LENGTH + 8];
 	g_LanguageDatabase.Escape(token, escapedToken, sizeof(escapedToken));
 	
 	Format(query, sizeof(query),
-			"SELECT token, string FROM localizations WHERE token = '%s' AND language = '%s'", escapedToken, languageName);
+			"SELECT token, string FROM localizations WHERE token = '%s' AND language = '%s'",
+			escapedToken, languageName);
 	
 	DataPack dataPack = new DataPack();
 	dataPack.WriteCell(language);
@@ -106,11 +115,12 @@ void Internal_GetLocalizedString(Handle callbackFwd, int language, const char[] 
 	g_LanguageDatabase.Query(Internal_LocalizedStringQueryCallback, query, dataPack);
 }
 
-public void Internal_LocalizedStringQueryCallback(Database db, DBResultSet results, const char[] error, DataPack dataPack) {
+public void Internal_LocalizedStringQueryCallback(Database db, DBResultSet results,
+		const char[] error, DataPack dataPack) {
 	dataPack.Reset();
 	
 	// we only use the packed token in case of an error (might be truncated)
-	char packedToken[128];
+	char packedToken[MAX_LANGUAGE_TOKEN_LENGTH];
 	
 	int language = dataPack.ReadCell();
 	any data = dataPack.ReadCell();
@@ -120,8 +130,13 @@ public void Internal_LocalizedStringQueryCallback(Database db, DBResultSet resul
 	delete dataPack;
 	
 	if (results.RowCount < 1) {
-		ThrowError("Could not find localized string for token %s.", packedToken);
-		delete callbackFwd;
+		char languageName[MAX_LANGUAGE_NAME_LENGTH];
+		GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
+		
+		LogError("Could not find localized string for token %s (language %s).",
+				packedToken, languageName);
+		
+		PerformLocalizedStringCallback(callbackFwd, language, packedToken, "", data);
 		return;
 	}
 	
@@ -138,7 +153,8 @@ public void Internal_LocalizedStringQueryCallback(Database db, DBResultSet resul
 	PerformLocalizedStringCallback(callbackFwd, language, token, resultString, data);
 }
 
-bool Internal_ResolveLocalizedString(int language, const char[] token, char[] buffer, int maxlen) {
+bool Internal_ResolveLocalizedString(int language, const char[] token, char[] buffer,
+		int maxlen) {
 	char languageName[MAX_LANGUAGE_NAME_LENGTH];
 	GetLanguageInfo(language, _, _, languageName, sizeof(languageName));
 	
@@ -147,14 +163,15 @@ bool Internal_ResolveLocalizedString(int language, const char[] token, char[] bu
 	
 	// apparently prepared statements can't be threaded yet!
 	SQL_Execute(g_StmtGetLocalizedString);
-	SQL_FetchRow(g_StmtGetLocalizedString);
-	
-	SQL_FetchString(g_StmtGetLocalizedString, 0, buffer, maxlen);
-	
-	return true;
+	if (SQL_FetchRow(g_StmtGetLocalizedString)) {
+		SQL_FetchString(g_StmtGetLocalizedString, 0, buffer, maxlen);
+		return true;
+	}
+	return false;
 }
 
-void PerformLocalizedStringCallback(Handle fwd, int language, const char[] token, const char[] result, any data) {
+void PerformLocalizedStringCallback(Handle fwd, int language, const char[] token,
+		const char[] result, any data) {
 	Call_StartForward(fwd);
 	Call_PushCell(language);
 	Call_PushString(token);
