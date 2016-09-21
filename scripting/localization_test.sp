@@ -8,7 +8,7 @@
 
 #include <localization_server>
 
-#define PLUGIN_VERSION "0.1.0"
+#define PLUGIN_VERSION "0.1.1"
 public Plugin myinfo = {
     name = "Localization Server Test Plugin",
     author = "nosoop",
@@ -51,10 +51,23 @@ public void OnPluginStart() {
 	}
 	
 	// Non-threaded -- these block until the query completes
-	char buffer[256];
 	for (int i = 0; i < sizeof(MORE_TEST_TOKENS); i++) {
+		char buffer[256];
 		LanguageServer_ResolveLocalizedString(GetServerLanguage(), MORE_TEST_TOKENS[i], buffer, sizeof(buffer));
 		PrintToServer("%2d. %s (%s)", i + 1, buffer, MORE_TEST_TOKENS[i]);
+	}
+	
+	StringMap sandvichStrings = LanguageServer_ResolveAllLocalizedStrings("TF_Unique_Achievement_LunchBox");
+	StringMapSnapshot sandvichLanguages = sandvichStrings.Snapshot();
+	
+	PrintToServer("Sandvich in %d languages:", sandvichLanguages.Length);
+	for (int i = 0; i < sandvichLanguages.Length; i++) {
+		char language[32], buffer[64];
+		
+		sandvichLanguages.GetKey(i, language, sizeof(language));
+		sandvichStrings.GetString(language, buffer, sizeof(buffer));
+		
+		PrintToServer("%2d. Sandvich in %s: %s", i + 1, language, buffer);
 	}
 }
 

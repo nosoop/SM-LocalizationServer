@@ -53,3 +53,15 @@ native void LanguageServer_GetLocalizedString(int language, const char[] token,
  */
 native bool LanguageServer_ResolveLocalizedString(int language, const char[] token,
 		char[] buffer, int maxlen);
+
+/**
+ * Performs a non-threaded query for a token, returning the results in a StringMap with the
+ * language name as keys.  Any languages not containing a localized version of the token will
+ * not be present in the StringMap.
+ * 
+ * @param token			The token whose localization string is being retrieved.
+ * 
+ * @return A StringMap with present language names (in lowercase) as keys and localized strings
+ * as values.
+ */
+native StringMap LanguageServer_ResolveAllLocalizedStrings(const char[] token);

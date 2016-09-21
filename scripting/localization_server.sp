@@ -6,7 +6,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.5.1"
+#define PLUGIN_VERSION "0.6.0"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -83,6 +83,43 @@ public int Native_ResolveLocalizedString(Handle plugin, int nArgs) {
 	SetNativeString(3, buffer, maxlen);
 	
 	return result;
+}
+
+public int Native_ResolveAll(Handle plugin, int nArgs) {
+	int tokenLength;
+	GetNativeStringLength(1, tokenLength);
+	tokenLength++;
+	
+	char[] token = new char[tokenLength];
+	GetNativeString(1, token, tokenLength);
+	
+	char error[128];
+	
+	DBStatement statement = SQL_PrepareQuery(g_LanguageDatabase,
+			"SELECT language,string FROM localizations WHERE token=?", error, sizeof(error));
+	
+	if (statement) {
+		statement.BindString(0, token, false);
+	}
+	SQL_Execute(statement);
+	
+	StringMap localizeds = new StringMap();
+	
+	if (statement) {
+		char language[32];
+		while (SQL_FetchRow(statement)) {
+			int localizedLength = SQL_FetchSize(statement, 1) + 1;
+			char[] localizedString = new char[localizedLength];
+			
+			SQL_FetchString(statement, 0, language, sizeof(language));
+			SQL_FetchString(statement, 1, localizedString, localizedLength);
+			
+			localizeds.SetString(language, localizedString);
+		}
+		delete statement;
+	}
+	
+	return view_as<int>(localizeds);
 }
 
 /* Internal query methods */
@@ -186,4 +223,5 @@ public APLRes AskPluginLoad2(Handle hMySelf, bool bLate, char[] strError, int iM
 	RegPluginLibrary("localization-server");
 	CreateNative("LanguageServer_GetLocalizedString", Native_GetLocalizedString);
 	CreateNative("LanguageServer_ResolveLocalizedString", Native_ResolveLocalizedString);
+	CreateNative("LanguageServer_ResolveAllLocalizedStrings", Native_ResolveAll);
 }
