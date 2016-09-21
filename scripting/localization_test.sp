@@ -8,7 +8,7 @@
 
 #include <localization_server>
 
-#define PLUGIN_VERSION "0.1.1"
+#define PLUGIN_VERSION "0.1.2"
 public Plugin myinfo = {
     name = "Localization Server Test Plugin",
     author = "nosoop",
@@ -69,6 +69,16 @@ public void OnPluginStart() {
 		
 		PrintToServer("%2d. Sandvich in %s: %s", i + 1, language, buffer);
 	}
+	
+	{
+		char formatBuffer[128];
+		LanguageServer_Format(formatBuffer, sizeof(formatBuffer),
+				"%s1 has found: %s2 %s3", "The Player", "The Sandvich", "(x5)");
+		
+		PrintToServer("%s", formatBuffer);
+	}
+	
+	// TODO write tests to make sure format actually works as expected
 }
 
 public void LS_PrintResult(int language, const char[] token, const char[] result, int counter) {

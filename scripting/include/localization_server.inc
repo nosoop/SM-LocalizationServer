@@ -65,3 +65,17 @@ native bool LanguageServer_ResolveLocalizedString(int language, const char[] tok
  * as values.
  */
 native StringMap LanguageServer_ResolveAllLocalizedStrings(const char[] token);
+
+/**
+ * Formats a Valve-style translation string, filling in the specifiers with strings if
+ * available.  Character iteration is used so format parameters that happen to look like
+ * specifiers are not overwritten.
+ * 
+ * @param buffer		Destination string buffer.
+ * @param maxlen		Maximum length of output string buffer.
+ * @param localization	Valve-style translation string, with %s1, %s2, %s3...
+ * @param ...			Variable number of format parameters.  %s1 will be replaced with the
+ * 						first string, %s2 with the second, and so on.
+ */
+native void LanguageServer_Format(char[] buffer, int maxlen, const char[] localization,
+		const char[] ...);

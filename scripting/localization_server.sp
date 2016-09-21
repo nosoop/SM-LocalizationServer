@@ -4,9 +4,11 @@
 #pragma semicolon 1
 #include <sourcemod>
 
+#include <regex>
+
 #pragma newdecls required
 
-#define PLUGIN_VERSION "0.6.0"
+#define PLUGIN_VERSION "0.7.0"
 public Plugin myinfo = {
     name = "Localization Server",
     author = "nosoop",
@@ -21,6 +23,8 @@ public Plugin myinfo = {
 
 Database g_LanguageDatabase;
 DBStatement g_StmtGetLocalizedString;
+
+Regex g_hValveFormatSpecifier;
 
 typedef LocalizedStringCallback = function void(int language, const char[] token,
 		const char[] result, any data);
@@ -44,6 +48,8 @@ public void OnPluginStart() {
 	
 	CreateConVar("localization_server_version", PLUGIN_VERSION,
 			"Current version of Localization Server", FCVAR_NOTIFY | FCVAR_DONTRECORD);
+	
+	g_hValveFormatSpecifier = new Regex("%s(\\d+)", _, error, sizeof(error));
 }
 
 /* Methods and natives */
@@ -120,6 +126,63 @@ public int Native_ResolveAll(Handle plugin, int nArgs) {
 	}
 	
 	return view_as<int>(localizeds);
+}
+
+public int Native_Format(Handle plugin, int nArgs) {
+	int maxlen = GetNativeCell(2);
+	char[] buffer = new char[maxlen];
+	
+	// get format string
+	int formatLength;
+	GetNativeStringLength(3, formatLength);
+	formatLength++;
+	char[] formatString = new char[formatLength];
+	GetNativeString(3, formatString, formatLength);
+	
+	// Find start of Valve-style format specifiers
+	int pos, endPos = -1;
+	while ((pos += FindCharInString(formatString[pos], '%')) > endPos) {
+		if (endPos == -1) {
+			endPos = 0;
+		}
+		
+		char[] copyBuffer = new char[maxlen];
+		
+		// get substring from what hasn't been copied up to the current position
+		strcopy(copyBuffer, pos - endPos + 1, formatString[endPos]);
+		
+		// are they really a format specifier?
+		if (g_hValveFormatSpecifier.Match(formatString[pos]) != -1) {
+			char subBuffer[32];
+			g_hValveFormatSpecifier.GetSubString(0, subBuffer, sizeof(subBuffer));
+			
+			// get replacement string
+			int iInserted = StringToInt(subBuffer[2]);
+			if (iInserted && iInserted + 3 <= nArgs) {
+				int nCharsNative;
+				GetNativeStringLength(iInserted + 3, nCharsNative);
+				nCharsNative++;
+				
+				char[] inserted = new char[nCharsNative];
+				GetNativeString(iInserted + 3, inserted, nCharsNative);
+				StrCat(copyBuffer, maxlen, inserted);
+			} else {
+				StrCat(copyBuffer, maxlen, subBuffer);
+			}
+			// skip to end of format specifier
+			pos += strlen(subBuffer);
+		}
+		
+		StrCat(buffer, maxlen, copyBuffer);
+		
+		endPos = pos;
+		pos++;
+	}
+	
+	// copy remaining part of string
+	StrCat(buffer, maxlen, formatString[endPos]);
+	
+	SetNativeString(1, buffer, maxlen, true);
 }
 
 /* Internal query methods */
@@ -224,4 +287,5 @@ public APLRes AskPluginLoad2(Handle hMySelf, bool bLate, char[] strError, int iM
 	CreateNative("LanguageServer_GetLocalizedString", Native_GetLocalizedString);
 	CreateNative("LanguageServer_ResolveLocalizedString", Native_ResolveLocalizedString);
 	CreateNative("LanguageServer_ResolveAllLocalizedStrings", Native_ResolveAll);
+	CreateNative("LanguageServer_Format", Native_Format);
 }
